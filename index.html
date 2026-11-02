@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FreshCart — Grocery Shopping</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #f4f6f8;
+      color: #1f2937;
+    }
+    header {
+      background: #16a34a;
+      color: #fff;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    }
+    header h1 { font-size: 1.4rem; display: flex; align-items: center; gap: 8px; }
+    .basket-btn {
+      background: #fff;
+      color: #16a34a;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: .95rem;
+    }
+    .basket-btn .count {
+      background: #16a34a;
+      color: #fff;
+      border-radius: 999px;
+      padding: 1px 8px;
+      margin-left: 6px;
+      font-size: .8rem;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 24px;
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+    .category { margin-bottom: 28px; }
+    .category h2 {
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+      color: #374151;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 6px;
+    }
+    .items {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .card .emoji { font-size: 2.4rem; }
+    .card .name { font-weight: 600; }
+    .card .price { color: #16a34a; font-weight: 600; }
+    .card button {
+      margin-top: 6px;
+      background: #16a34a;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+      width: 100%;
+    }
+    .card button:hover { background: #15803d; }
+    /* Basket */
+    .basket {
+      background: #fff;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+      align-self: start;
+      position: sticky;
+      top: 90px;
+    }
+    .basket h2 { margin-bottom: 14px; font-size: 1.15rem; }
+    .empty { color: #9ca3af; text-align: center; padding: 24px 0; }
+    .basket-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #f1f5f9;
+      gap: 8px;
+    }
+    .basket-item .info { flex: 1; }
+    .basket-item .info .n { font-weight: 600; font-size: .9rem; }
+    .basket-item .info .p { color: #6b7280; font-size: .8rem; }
+    .qty { display: flex; align-items: center; gap: 6px; }
+    .qty button {
+      width: 26px; height: 26px;
+      border: 1px solid #d1d5db;
+      background: #f9fafb;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .remove {
+      background: none; border: none; color: #ef4444;
+      cursor: pointer; font-size: 1.1rem; margin-left: 4px;
+    }
+    .total {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 2px solid #e5e7eb;
+    }
+    .checkout {
+      width: 100%;
+      margin-top: 14px;
+      background: #16a34a;
+      color: #fff;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .checkout:disabled { background: #9ca3af; cursor: not-allowed; }
+    @media (max-width: 800px) {
+      .layout { grid-template-columns: 1fr; }
+      .basket { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛒 FreshCart Grocery</h1>
+    <button class="basket-btn" onclick="document.querySelector('.basket').scrollIntoView({behavior:'smooth'})">
+      Basket <span class="count" id="headerCount">0</span>
+    </button>
+  </header>
+
+  <div class="layout">
+    <!-- Shopping list -->
+    <div id="shoppingList"></div>
+
+    <!-- Basket -->
+    <aside class="basket">
+      <h2>🧺 Your Basket</h2>
+      <div id="basketItems"></div>
+      <div class="total">
+        <span>Total</span>
+        <span id="basketTotal">$0.00</span>
+      </div>
+      <button class="checkout" id="checkoutBtn" disabled onclick="checkout()">Checkout</button>
+    </aside>
+  </div>
+
+  <script>
+    // ---- Grocery data ----
+    const groceries = [
+      { category: "Fruits & Vegetables", items: [
+        { id: 1, name: "Apples",   emoji: "🍎", price: 2.50 },
+        { id: 2, name: "Bananas",  emoji: "🍌", price: 1.20 },
+        { id: 3, name: "Tomatoes", emoji: "🍅", price: 1.80 },
+        { id: 4, name: "Potatoes", emoji: "🥔", price: 3.00 },
+        { id: 5, name: "Carrots",  emoji: "🥕", price: 1.50 },
+        { id: 6, name: "Lettuce",  emoji: "🥬", price: 1.10 },
+      ]},
+      { category: "Dairy & Eggs", items: [
+        { id: 7,  name: "Milk",   emoji: "🥛", price: 1.30 },
+        { id: 8,  name: "Cheese", emoji: "🧀", price: 4.20 },
+        { id: 9,  name: "Butter", emoji: "🧈", price: 2.00 },
+        { id: 10, name: "Eggs",   emoji: "🥚", price: 2.80 },
+        { id: 11, name: "Yogurt", emoji: "🍶", price: 1.60 },
+      ]},
+      { category: "Bakery", items: [
+        { id: 12, name: "Bread",      emoji: "🍞", price: 1.90 },
+        { id: 13, name: "Croissants", emoji: "🥐", price: 3.50 },
+        { id: 14, name: "Bagels",     emoji: "🥯", price: 2.40 },
+      ]},
+      { category: "Meat & Fish", items: [
+        { id: 15, name: "Chicken", emoji: "🍗", price: 5.50 },
+        { id: 16, name: "Beef",    emoji: "🥩", price: 7.80 },
+        { id: 17, name: "Salmon",  emoji: "🐟", price: 8.20 },
+      ]},
+      { category: "Pantry", items: [
+        { id: 18, name: "Rice",      emoji: "🍚", price: 2.10 },
+        { id: 19, name: "Pasta",     emoji: "🍝", price: 1.70 },
+        { id: 20, name: "Olive Oil", emoji: "🫒", price: 6.00 },
+        { id: 21, name: "Coffee",    emoji: "☕", price: 4.90 },
+      ]},
+      { category: "Drinks & Snacks", items: [
+        { id: 22, name: "Juice",     emoji: "🧃", price: 2.30 },
+        { id: 23, name: "Water",     emoji: "💧", price: 0.90 },
+        { id: 24, name: "Chocolate", emoji: "🍫", price: 1.50 },
+        { id: 25, name: "Cookies",   emoji: "🍪", price: 2.20 },
+      ]},
+    ];
+
+    const allItems = groceries.flatMap(c => c.items);
+    let basket = {}; // { id: quantity }
+
+    // ---- Render shopping list ----
+    function renderShoppingList() {
+      const container = document.getElementById("shoppingList");
+      container.innerHTML = groceries.map(cat => `
+        <section class="category">
+          <h2>${cat.category}</h2>
+          <div class="items">
+            ${cat.items.map(item => `
+              <div class="card">
+                <div class="emoji">${item.emoji}</div>
+                <div class="name">${item.name}</div>
+                <div class="price">$${item.price.toFixed(2)}</div>
+                <button onclick="addToBasket(${item.id})">Add to basket</button>
+              </div>
+            `).join("")}
+          </div>
+        </section>
+      `).join("");
+    }
+
+    // ---- Basket logic ----
+    function addToBasket(id) {
+      basket[id] = (basket[id] || 0) + 1;
+      renderBasket();
+    }
+    function changeQty(id, delta) {
+      basket[id] = (basket[id] || 0) + delta;
+      if (basket[id] <= 0) delete basket[id];
+      renderBasket();
+    }
+    function removeItem(id) {
+      delete basket[id];
+      renderBasket();
+    }
+
+    function renderBasket() {
+      const ids = Object.keys(basket);
+      const basketItems = document.getElementById("basketItems");
+      const totalEl = document.getElementById("basketTotal");
+      const headerCount = document.getElementById("headerCount");
+      const checkoutBtn = document.getElementById("checkoutBtn");
+
+      let total = 0, count = 0;
+
+      if (ids.length === 0) {
+        basketItems.innerHTML = `<div class="empty">Your basket is empty.<br>Add some items! 🛍️</div>`;
+      } else {
+        basketItems.innerHTML = ids.map(id => {
+          const item = allItems.find(i => i.id == id);
+          const qty = basket[id];
+          const lineTotal = item.price * qty;
+          total += lineTotal;
+          count += qty;
+          return `
+            <div class="basket-item">
+              <div class="info">
+                <div class="n">${item.emoji} ${item.name}</div>
+                <div class="p">$${item.price.toFixed(2)} each</div>
+              </div>
+              <div class="qty">
+                <button onclick="changeQty(${id}, -1)">−</button>
+                <span>${qty}</span>
+                <button onclick="changeQty(${id}, 1)">+</button>
+              </div>
+              <button class="remove" title="Remove" onclick="removeItem(${id})">🗑️</button>
+            </div>`;
+        }).join("");
+      }
+
+      totalEl.textContent = `$${total.toFixed(2)}`;
+      headerCount.textContent = count;
+      checkoutBtn.disabled = ids.length === 0;
+    }
+
+    function checkout() {
+      const total = document.getElementById("basketTotal").textContent;
+      alert(`✅ Order placed!\nTotal: ${total}\nThank you for shopping with FreshCart. 🛒`);
+      basket = {};
+      renderBasket();
+    }
+
+    // ---- Init ----
+    renderShoppingList();
+    renderBasket();
+  </script>
+</body>
+</html>
